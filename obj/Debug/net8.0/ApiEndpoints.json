@@ -63,6 +63,26 @@
   },
   {
     "ContainingType": "GetOtpAPI.Controllers.UaePassController",
+    "Method": "GetPasscodePlaywrightTest",
+    "RelativePath": "api/uaepass/GetPasscodePlaywrightTest",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "GetOtpAPI.Controllers.PasscodeResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "GetOtpAPI.Controllers.UaePassController",
     "Method": "GetPasscode",
     "RelativePath": "api/uaepass/passcode",
     "HttpMethod": "POST",

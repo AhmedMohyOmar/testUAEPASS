@@ -119,6 +119,35 @@
           }
         }
       }
+    },
+    "/api/uaepass/GetPasscodePlaywrightTest": {
+      "post": {
+        "tags": [
+          "UaePass"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasscodeResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasscodeResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasscodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
