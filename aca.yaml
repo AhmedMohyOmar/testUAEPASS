@@ -1,0 +1,15 @@
+﻿properties:
+  template:
+    containers:
+      - name: api
+        image: headlessbrowserdocker.azurecr.io/getotpapi:v1
+        env:
+          - name: ASPNETCORE_URLS
+            value: "http://+:8080"
+          - name: SELENIUM_URL
+            value: "http://localhost:4444/wd/hub"
+      - name: selenium
+        image: selenium/standalone-chrome:latest
+        resources:
+          cpu: 1
+          memory: 2Gi
