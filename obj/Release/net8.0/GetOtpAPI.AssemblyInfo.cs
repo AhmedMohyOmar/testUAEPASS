@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GetOtpAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e8cc68ebbbd48f02d927e9cef50e52e21d35dbfb")]
 [assembly: System.Reflection.AssemblyProductAttribute("GetOtpAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GetOtpAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -6,267 +6,287 @@ using OpenQA.Selenium.Support.UI;
 
 namespace GetOtpAPI.Controllers;
 
-[ApiController]
-[Route("api/uaepass")]
-public class UaePassController : ControllerBase
-{
-    // Same constants you used
-    private const int TIMEOUT = 120;
-    private const string IDENTIFIER_INPUT_ID = "username";
-    private const string PASSCODE_FIELD = "data-after-content";
-    private const string PASSCODE_CARD_DIV_CSS = "div.passcode-card";
-    private const string IDENTIFIER_SUBMIT_BTN_ID = "basicPasswordForm-submitButton";
-    private const int TIMEOUT_SECONDS = 120;
-    
+//[ApiController]
+//[Route("api/uaepass")]
+//public class UaePassController : ControllerBase
+//{
+//    // Same constants you used
+//    private const int TIMEOUT = 120;
+//    private const string IDENTIFIER_INPUT_ID = "username";
+//    private const string PASSCODE_FIELD = "data-after-content";
+//    private const string PASSCODE_CARD_DIV_CSS = "div.passcode-card";
+//    private const string IDENTIFIER_SUBMIT_BTN_ID = "basicPasswordForm-submitButton";
+//    private const int TIMEOUT_SECONDS = 120;
 
-    private readonly AuthCodeStore _store;
 
-    public UaePassController(AuthCodeStore store)
-    {
-        _store = store;
-    }
+//    private readonly AuthCodeStore _store;
 
-    // 1) Request passcode (OTP) by identifier (mobile/email)
-    [HttpPost("passcode")]
-    public ActionResult<PasscodeResponse> GetPasscode()
-    {
-        //if (string.IsNullOrWhiteSpace(req.Identifier))
-        //    return BadRequest("Identifier is required.");
+//    public UaePassController(AuthCodeStore store)
+//    {
+//        _store = store;
+//    }
 
-        // In real apps: generate state per request (unique), not hard-coded
-        //var state = string.IsNullOrWhiteSpace(req.State)
-        //    ? Guid.NewGuid().ToString("N")
-        //    : req.State.Trim();
+//    // 1) Request passcode (OTP) by identifier (mobile/email)
+//    [HttpPost("passcode")]
+//    public ActionResult<PasscodeResponse> GetPasscode()
+//    {
+//        //if (string.IsNullOrWhiteSpace(req.Identifier))
+//        //    return BadRequest("Identifier is required.");
 
-        // redirect_uri must match what UAE PASS expects AND be reachable by UAE PASS
-        // If you're running locally, UAE PASS won't reach your localhost callback.
-        // For local testing you can still automate passcode, but callback capture won't work unless public URL.
-        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs"; 
-        //req.RedirectUri?.Trim()
-        //    ?? $"{Request.Scheme}://{Request.Host}/api/uaepass/callback";
+//        // In real apps: generate state per request (unique), not hard-coded
+//        //var state = string.IsNullOrWhiteSpace(req.State)
+//        //    ? Guid.NewGuid().ToString("N")
+//        //    : req.State.Trim();
 
-        var passcode = ExecuteIVRLogin();
+//        // redirect_uri must match what UAE PASS expects AND be reachable by UAE PASS
+//        // If you're running locally, UAE PASS won't reach your localhost callback.
+//        // For local testing you can still automate passcode, but callback capture won't work unless public URL.
+//        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs"; 
+//        //req.RedirectUri?.Trim()
+//        //    ?? $"{Request.Scheme}://{Request.Host}/api/uaepass/callback";
 
-        return Ok(new PasscodeResponse
-        {
-            Identifier = "971503424573",
-            Passcode = passcode,
-            State = "HnlHOJTkTb66Y5H",
-            RedirectUri = redirectUri,
-            TimeoutSeconds = TIMEOUT
-        });
-    }
+//        var passcode = ExecuteIVRLogin();
 
-    // 2) UAE PASS redirects back here with ?code=...&state=...
-    [HttpGet("callback")]
-    public IActionResult Callback([FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? error)
-    {
-        if (!string.IsNullOrWhiteSpace(error))
-            return BadRequest(new { message = "UAE PASS returned an error", error });
+//        return Ok(new PasscodeResponse
+//        {
+//            Identifier = "971503424573",
+//            Passcode = passcode,
+//            State = "HnlHOJTkTb66Y5H",
+//            RedirectUri = redirectUri,
+//            TimeoutSeconds = TIMEOUT
+//        });
+//    }
 
-        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state))
-            return BadRequest(new { message = "Missing code/state", code, state });
+//    // 2) UAE PASS redirects back here with ?code=...&state=...
+//    [HttpGet("callback")]
+//    public IActionResult Callback([FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? error)
+//    {
+//        if (!string.IsNullOrWhiteSpace(error))
+//            return BadRequest(new { message = "UAE PASS returned an error", error });
 
-        _store.Save(state, code);
+//        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state))
+//            return BadRequest(new { message = "Missing code/state", code, state });
 
-        // You can return HTML or just OK
-        return Ok(new { message = "Authorization code captured", state });
-    }
+//        _store.Save(state, code);
 
-    // 3) Poll later to get the auth code by state
-    [HttpGet("code/{state}")]
-    public IActionResult GetCode([FromRoute] string state)
-    {
-        if (_store.TryGet(state, out var code) && !string.IsNullOrWhiteSpace(code))
-            return Ok(new { state, code });
+//        // You can return HTML or just OK
+//        return Ok(new { message = "Authorization code captured", state });
+//    }
 
-        return NotFound(new { message = "No code captured for this state yet", state });
-    }
+//    // 3) Poll later to get the auth code by state
+//    [HttpGet("code/{state}")]
+//    public IActionResult GetCode([FromRoute] string state)
+//    {
+//        if (_store.TryGet(state, out var code) && !string.IsNullOrWhiteSpace(code))
+//            return Ok(new { state, code });
 
-    #region Playwright
+//        return NotFound(new { message = "No code captured for this state yet", state });
+//    }
 
-    [HttpPost("GetPasscodePlaywrightTest")]
-    public async Task<ActionResult<PasscodeResponse>> GetPasscodePlaywrightTest()
-    {
-        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs";
+//    #region Playwright
 
-        // Call the async Playwright logic
-        var passcode = await ExecuteIVRLoginAsyncPlaywrightTest();
+//    [HttpPost("GetPasscodePlaywrightTest")]
+//    public async Task<ActionResult<PasscodeResponse>> GetPasscodePlaywrightTest()
+//    {
+//        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs";
 
-        return Ok(new PasscodeResponse
-        {
-            Identifier = "971503424573",
-            Passcode = passcode,
-            State = "HnlHOJTkTb66Y5H",
-            RedirectUri = redirectUri,
-            TimeoutSeconds = TIMEOUT_SECONDS
-        });
-    }
+//        // Call the async Playwright logic
+//        var passcode = await ExecuteIVRLoginAsyncPlaywrightTest();
 
-    private async Task<string> ExecuteIVRLoginAsyncPlaywrightTest()
-    {
-        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs";
-        var authUrl = "https://stg-id.uaepass.ae/idshub/authorize?" +
-                      "response_type=code&" +
-                      "client_id=sandbox_stage&" +
-                      "scope=urn:uae:digitalid:profile:general&" +
-                      "state=HnlHOJTkTb66Y5H&" +
-                      $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
-                      "acr_values=urn:safelayer:tws:policies:authentication:level:low";
 
-        using var playwright = await Playwright.CreateAsync();
-        // Launching with headless: true for server-side execution
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = true,
-            Args = new[] { "--no-sandbox", "--disable-dev-shm-usage" }
-        });
+//        return Ok(new PasscodeResponse
+//        {
+//            Identifier = "971503424573",
+//            Passcode = passcode,
+//            State = "HnlHOJTkTb66Y5H",
+//            RedirectUri = redirectUri,
+//            TimeoutSeconds = TIMEOUT_SECONDS
+//        });
+//    }
 
-        var context = await browser.NewContextAsync();
-        var page = await context.NewPageAsync();
+//    private async Task<string> ExecuteIVRLoginAsyncPlaywrightTest()
+//    {
+//        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs";
+//        var authUrl = "https://stg-id.uaepass.ae/idshub/authorize?" +
+//                      "response_type=code&" +
+//                      "client_id=sandbox_stage&" +
+//                      "scope=urn:uae:digitalid:profile:general&" +
+//                      "state=HnlHOJTkTb66Y5H&" +
+//                      $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
+//                      "acr_values=urn:safelayer:tws:policies:authentication:level:low";
 
-        try
-        {
-            // 1. Navigate to UAE PASS
-            await page.GotoAsync(authUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+//        using var playwright = await Playwright.CreateAsync();
+//        // Launching with headless: true for server-side execution
+//        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+//        {
+//            Headless = true,
+//            Args = new[] { "--no-sandbox", "--disable-dev-shm-usage" }
+//        });
 
-            // 2. Fill Identifier
-            await page.WaitForSelectorAsync(IDENTIFIER_INPUT_ID, new PageWaitForSelectorOptions { Timeout = TIMEOUT_SECONDS * 1000 });
-            await page.FillAsync(IDENTIFIER_INPUT_ID, "971503424573");
+//        var context = await browser.NewContextAsync();
+//        var page = await context.NewPageAsync();
 
-            // 3. Handle the "Loading" overlay
-            // FIX: Using .First avoids the 'strict mode violation' where multiple col-sm-12 exist
-            var loadingDiv = page.Locator("div.col-sm-12").First;
-            try
-            {
-                await loadingDiv.WaitForAsync(new LocatorWaitForOptions
-                {
-                    State = WaitForSelectorState.Hidden,
-                    Timeout = 5000
-                });
-            }
-            catch
-            {
-                /* If it disappears faster than 5s or never appears, continue */
-            }
 
-            // 4. Click Submit
-            // Ensure the button is visible and enabled before clicking
-            await page.WaitForSelectorAsync(IDENTIFIER_SUBMIT_BTN_ID, new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
-            await page.ClickAsync(IDENTIFIER_SUBMIT_BTN_ID);
 
-            // 5. Get Passcode from attribute
-            var passcodeCard = page.Locator(PASSCODE_CARD_DIV_CSS);
-            await passcodeCard.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = TIMEOUT_SECONDS * 1000
-            });
+//        try
+//        {
+//            // 1. Navigate to UAE PASS
+//            await page.GotoAsync(authUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
-            string passcodeValue = await passcodeCard.GetAttributeAsync(PASSCODE_FIELD) ?? "";
+//            // 2. Fill Identifier
+//            await page.WaitForSelectorAsync(IDENTIFIER_INPUT_ID, new PageWaitForSelectorOptions { Timeout = TIMEOUT_SECONDS * 1000 });
+//            await page.FillAsync(IDENTIFIER_INPUT_ID, "971503424573");
 
-            // 6. Optional: Wait for the final redirect (mobile app approval)
-            try
-            {
-                // We give the user 30 seconds to approve on their mobile device
-                await page.WaitForURLAsync(url => url.Contains("code="), new PageWaitForURLOptions { Timeout = 30000 });
-            }
-            catch (System.TimeoutException)
-            {
-                // Flow continues even if redirect hasn't happened yet, as we have the passcode
-            }
+//            // 3. Handle the "Loading" overlay
+//            // FIX: Using .First avoids the 'strict mode violation' where multiple col-sm-12 exist
+//            var loadingDiv = page.Locator("div.col-sm-12").First;
+//            try
+//            {
+//                await loadingDiv.WaitForAsync(new LocatorWaitForOptions
+//                {
+//                    State = WaitForSelectorState.Hidden,
+//                    Timeout = 5000
+//                });
+//            }
+//            catch
+//            {
+//                /* If it disappears faster than 5s or never appears, continue */
+//            }
 
-            return passcodeValue;
-        }
-        catch (Exception ex)
-        {
-            // Log your exception here (e.g., _logger.LogError(ex))
-            throw;
-        }
-        finally
-        {
-            // Explicitly close context and browser to free up system resources
-            await context.CloseAsync();
-            await browser.CloseAsync();
-        }
-    }
-    #endregion
-    private static string ExecuteIVRLogin()
-    {
-        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs";
+//            // 4. Click Submit
+//            // Ensure the button is visible and enabled before clicking
+//            await page.WaitForSelectorAsync(IDENTIFIER_SUBMIT_BTN_ID, new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
+//            await page.ClickAsync(IDENTIFIER_SUBMIT_BTN_ID);
 
-        string passcodeValue = "";
+//            // 5. Get Passcode from attribute
+//            var passcodeCard = page.Locator(PASSCODE_CARD_DIV_CSS);
+//            await passcodeCard.WaitForAsync(new LocatorWaitForOptions
+//            {
+//                State = WaitForSelectorState.Visible,
+//                Timeout = TIMEOUT_SECONDS * 1000
+//            });
 
-        var options = new ChromeOptions();
-        options.AddArgument("--headless=new");
-        options.AddArgument("--no-sandbox");
-        options.AddArgument("--disable-dev-shm-usage");
+//            string passcodeValue = await passcodeCard.GetAttributeAsync(PASSCODE_FIELD) ?? "";
 
-        // If you face issues with ChromeDriver versions, consider using Selenium Manager (newer Selenium),
-        // or ensure Chrome + chromedriver versions align.
-        using IWebDriver driver = new ChromeDriver(options);
+//            // 6. Optional: Wait for the final redirect (mobile app approval)
+//            try
+//            {
+//                // We give the user 30 seconds to approve on their mobile device
+//                await page.WaitForURLAsync(url => url.Contains("code="), new PageWaitForURLOptions { Timeout = 30000 });
+//            }
+//            catch (System.TimeoutException)
+//            {
+//                // Flow continues even if redirect hasn't happened yet, as we have the passcode
+//            }
 
-        try
-        {
-            var url =
-                "https://stg-id.uaepass.ae/idshub/authorize?" +
-                "response_type=code&" +
-                "client_id=sandbox_stage&" +
-                "scope=urn:uae:digitalid:profile:general&" +
-                $"state=HnlHOJTkTb66Y5H&" +
-                $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
-                "acr_values=urn:safelayer:tws:policies:authentication:level:low";
+//            string interceptedCode = "";
 
-            driver.Navigate().GoToUrl(url);
+//            // 1. START INTERCEPTING REQUESTS
+//            page.Request += (_, request) =>
+//            {
+//                // Check if the request URL contains your redirect URI and the 'code=' parameter
+//                if (request.Url.Contains("www.test.com") && request.Url.Contains("code="))
+//                {
+//                    var uri = new Uri(request.Url);
+//                    var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+//                    interceptedCode = query["code"] ?? "";
 
-            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(TIMEOUT));
+//                    // Log it for your Azure console
+//                    Console.WriteLine($"SUCCESS: Intercepted Code: {interceptedCode}");
+//                }
+//            };
 
-            var textField = wait.Until(d => d.FindElement(By.Id(IDENTIFIER_INPUT_ID)));
-            textField.Clear();
-            textField.SendKeys("971503424573");
+//            return passcodeValue + " -- " + interceptedCode;
+//        }
+//        catch (Exception ex)
+//        {
+//            // Log your exception here (e.g., _logger.LogError(ex))
+//            throw;
+//        }
+//        finally
+//        {
+//            // Explicitly close context and browser to free up system resources
+//            await context.CloseAsync();
+//            await browser.CloseAsync();
+//        }
+//    }
+//    #endregion
+//    private static string ExecuteIVRLogin()
+//    {
+//        var redirectUri = "https://tdrauaepasspoc-d8a4gmhxb3hydfea.uaenorth-01.azurewebsites.net/api/callbackFunctioncs";
 
-            // Wait until the "div.col-sm-12" disappears (same as your logic)
-            var shortWait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-            shortWait.Until(d =>
-            {
-                try
-                {
-                    var element = d.FindElement(By.CssSelector("div.col-sm-12"));
-                    return !element.Displayed;
-                }
-                catch (NoSuchElementException)
-                {
-                    return true;
-                }
-            });
+//        string passcodeValue = "";
 
-            var submitBtn = wait.Until(d => d.FindElement(By.Id(IDENTIFIER_SUBMIT_BTN_ID)));
+//        var options = new ChromeOptions();
+//        options.AddArgument("--headless=new");
+//        options.AddArgument("--no-sandbox");
+//        options.AddArgument("--disable-dev-shm-usage");
 
-            ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].scrollIntoView(true);", submitBtn);
-            submitBtn.Click();
+//        // If you face issues with ChromeDriver versions, consider using Selenium Manager (newer Selenium),
+//        // or ensure Chrome + chromedriver versions align.
+//        using IWebDriver driver = new ChromeDriver(options);
 
-            var passcodeCard = wait.Until(d => d.FindElement(By.CssSelector(PASSCODE_CARD_DIV_CSS)));
-            passcodeValue = passcodeCard.GetAttribute(PASSCODE_FIELD) ?? "";
+//        try
+//        {
+//            var url =
+//                "https://stg-id.uaepass.ae/idshub/authorize?" +
+//                "response_type=code&" +
+//                "client_id=sandbox_stage&" +
+//                "scope=urn:uae:digitalid:profile:general&" +
+//                $"state=HnlHOJTkTb66Y5H&" +
+//                $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
+//                "acr_values=urn:safelayer:tws:policies:authentication:level:low";
 
-            // Optional: wait for redirect to happen (means user confirmed in mobile app)
-            var beforeRedirect = driver.Url;
-            try
-            {
-                wait.Until(d => !d.Url.Equals(beforeRedirect));
-            }
-            catch (WebDriverTimeoutException)
-            {
-                // passcode was generated but redirect didn't happen in time
-            }
+//            driver.Navigate().GoToUrl(url);
 
-            return passcodeValue;
-        }
-        finally
-        {
-            driver.Quit();
-        }
-    }
-}
+//            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(TIMEOUT));
+
+//            var textField = wait.Until(d => d.FindElement(By.Id(IDENTIFIER_INPUT_ID)));
+//            textField.Clear();
+//            textField.SendKeys("971503424573");
+
+//            // Wait until the "div.col-sm-12" disappears (same as your logic)
+//            var shortWait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
+//            shortWait.Until(d =>
+//            {
+//                try
+//                {
+//                    var element = d.FindElement(By.CssSelector("div.col-sm-12"));
+//                    return !element.Displayed;
+//                }
+//                catch (NoSuchElementException)
+//                {
+//                    return true;
+//                }
+//            });
+
+//            var submitBtn = wait.Until(d => d.FindElement(By.Id(IDENTIFIER_SUBMIT_BTN_ID)));
+
+//            ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].scrollIntoView(true);", submitBtn);
+//            submitBtn.Click();
+
+//            var passcodeCard = wait.Until(d => d.FindElement(By.CssSelector(PASSCODE_CARD_DIV_CSS)));
+//            passcodeValue = passcodeCard.GetAttribute(PASSCODE_FIELD) ?? "";
+
+//            // Optional: wait for redirect to happen (means user confirmed in mobile app)
+//            var beforeRedirect = driver.Url;
+//            try
+//            {
+//                wait.Until(d => !d.Url.Equals(beforeRedirect));
+//            }
+//            catch (WebDriverTimeoutException)
+//            {
+//                // passcode was generated but redirect didn't happen in time
+//            }
+
+//            return passcodeValue;
+//        }
+//        finally
+//        {
+//            driver.Quit();
+//        }
+//    }
+//}
 
 public sealed class PasscodeRequest
 {
