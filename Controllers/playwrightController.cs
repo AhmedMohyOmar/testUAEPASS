@@ -50,18 +50,39 @@ public class playwrightController : ControllerBase
         var authUrl = $"https://stg-id.uaepass.ae/idshub/authorize?response_type=code&client_id=sandbox_stage&scope=urn:uae:digitalid:profile:general&state={state}&redirect_uri={Uri.EscapeDataString(redirectUri)}&acr_values=urn:safelayer:tws:policies:authentication:level:low";
 
         var playwright = await Playwright.CreateAsync();
-        var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+        var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true,
+            Args = new[]
+        {
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage"
+        }
+        });
         var context = await browser.NewContextAsync();
         var page = await context.NewPageAsync();
+        page.SetDefaultTimeout(TIMEOUT_SECONDS * 1000);
 
-        await page.GotoAsync(authUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
-        await page.FillAsync("#username", PhoneNumber);
-        await page.ClickAsync("#basicPasswordForm-submitButton");
+        string passcodeValue;
+        try
+        {
+            // NetworkIdle never settles on the UAE PASS page (background polling), so wait for DOM + the input instead
+            await page.GotoAsync(authUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = TIMEOUT_SECONDS * 1000 });
+            await page.WaitForSelectorAsync(IDENTIFIER_INPUT_ID, new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
+            await page.FillAsync(IDENTIFIER_INPUT_ID, PhoneNumber);
+            await page.ClickAsync(IDENTIFIER_SUBMIT_BTN_ID);
 
-        // Wait for passcode
-        var passcodeCard = page.Locator("div.passcode-card");
-        await passcodeCard.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        string passcodeValue = await passcodeCard.GetAttributeAsync("data-after-content") ?? "";
+            // Wait for passcode
+            var passcodeCard = page.Locator(PASSCODE_CARD_DIV_CSS);
+            await passcodeCard.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+            passcodeValue = await passcodeCard.GetAttributeAsync(PASSCODE_FIELD) ?? "";
+        }
+        catch
+        {
+            // Don't leak a Chromium process per failed request
+            await browser.CloseAsync();
+            playwright.Dispose();
+            throw;
+        }
 
         // SAVE the page session using 'state' as the key
         _activeSessions[state] = page;
@@ -126,7 +147,7 @@ public class playwrightController : ControllerBase
         try
         {
             // 1. Navigate to UAE PASS
-            await page.GotoAsync(authUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+            await page.GotoAsync(authUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = TIMEOUT_SECONDS * 1000 });
 
             // 2. Fill Identifier
             await page.WaitForSelectorAsync(IDENTIFIER_INPUT_ID, new PageWaitForSelectorOptions { Timeout = TIMEOUT_SECONDS * 1000 });
