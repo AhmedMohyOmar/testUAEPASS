@@ -12,6 +12,8 @@ public class playwrightController : ControllerBase
     private const string PASSCODE_FIELD = "data-after-content";
     private const string PASSCODE_CARD_DIV_CSS = "div.passcode-card";
     private const string IDENTIFIER_SUBMIT_BTN_ID = "#basicPasswordForm-submitButton";
+    // UAE PASS silently drops requests whose user-agent contains "HeadlessChrome", so present a regular Chrome UA
+    internal const string BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36";
     // Static storage to keep the browser session alive between API calls
     // In production, use a Singleton Service with a cleaner cleanup logic
     private static readonly Dictionary<string, IPage> _activeSessions = new();
@@ -58,7 +60,7 @@ public class playwrightController : ControllerBase
             "--disable-dev-shm-usage"
         }
         });
-        var context = await browser.NewContextAsync();
+        var context = await browser.NewContextAsync(new BrowserNewContextOptions { UserAgent = BROWSER_USER_AGENT });
         var page = await context.NewPageAsync();
         page.SetDefaultTimeout(TIMEOUT_SECONDS * 1000);
 
@@ -141,7 +143,7 @@ public class playwrightController : ControllerBase
             Args = new[] { "--no-sandbox", "--disable-dev-shm-usage" }
         });
 
-        var context = await browser.NewContextAsync();
+        var context = await browser.NewContextAsync(new BrowserNewContextOptions { UserAgent = BROWSER_USER_AGENT });
         var page = await context.NewPageAsync();
 
         try

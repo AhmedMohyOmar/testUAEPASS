@@ -123,7 +123,7 @@ public class UaePassController : ControllerBase
             Args = new[] { "--no-sandbox", "--disable-dev-shm-usage" }
         });
 
-        var context = await browser.NewContextAsync();
+        var context = await browser.NewContextAsync(new BrowserNewContextOptions { UserAgent = playwrightController.BROWSER_USER_AGENT });
         var page = await context.NewPageAsync();
 
 
