@@ -4,3 +4,4 @@ obj/
 .github/
 .vs/
 *.user
+.claude/
